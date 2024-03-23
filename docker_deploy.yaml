@@ -1,0 +1,54 @@
+- name: Deploy Apache Docker Container
+  hosts: 192.168.20.215
+  become: yes
+
+  tasks:
+
+    - name: Start Docker service
+      service:
+        name: podman  # Used podman as am using docker-podman.Please consider docker if using docker
+        state: started
+      tags: [docker]
+
+    - name: Pull Apache Docker image
+      docker_image:
+        name: httpd
+        tag: latest
+        source: pull
+      tags: [docker]
+
+    - name: Configuring network for the container with subnet
+      docker_network:
+        name: my_network
+        driver: bridge
+        ipam_config:
+          - subnet: 172.168.10.0/30
+      tags: [docker]
+
+
+    - name: Run Apache container
+      docker_container:
+        name: apache_container
+        image: httpd:latest
+        state: started
+        restart_policy: always
+        ports:
+          - "80:80"
+        networks:
+          - name: my_network
+      tags: [docker]
+
+    - name: Copy static web files
+      community.docker.docker_container_copy_into:
+        container: apache_container     
+        path: /tmp/index.html
+        container_path: /usr/local/apache2/htdocs/index.html
+        
+  handlers:
+    - name: restart apache
+      service:
+        name: apache2
+        state: restarted
+ 
+    
+
